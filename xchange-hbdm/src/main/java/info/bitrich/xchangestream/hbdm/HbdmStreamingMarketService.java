@@ -9,41 +9,40 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
-public class HbdmTradingStreamingService extends HbdmStreamingService {
+public class HbdmStreamingMarketService extends HbdmStreamingService {
 
-    private final static Logger logger = LoggerFactory.getLogger(HbdmTradingStreamingService.class);
+    private final static Logger logger = LoggerFactory.getLogger(HbdmStreamingMarketService.class);
 
-    public HbdmTradingStreamingService(String apiUrl) {
+    public HbdmStreamingMarketService(String apiUrl) {
         super(apiUrl);
     }
 
     @Override
     public String getSubscribeMessage(String channelName, Object... args) throws IOException {
         Map<String, String> msg = new HashMap<>();
-        msg.put("op", "sub");
-        msg.put("topic", channelName);
+        msg.put("sub", channelName);
         return mapper.writeValueAsString(msg);
     }
 
     @Override
     public String getUnsubscribeMessage(String channelName) throws IOException {
-        Map<String, String> msg = new HashMap<>();
-        msg.put("op", "unsub");
-        msg.put("topic", channelName);
-        return mapper.writeValueAsString(msg);
+        return "";
     }
 
     @Override
     protected void handleMessage(JsonNode message) {
-        if ("ping".equals(message.get("op").asText())) {
-            Map<String, Object> pong = new HashMap<>();
-            pong.put("op", "pong");
-            pong.put("ts", message.get("ts").asLong());
+        if (message.has("ping")) {
+            Map<String, Long> pong = new HashMap<>();
+            pong.put("pong", message.get("ping").asLong());
             try {
                 sendMessage(mapper.writeValueAsString(pong));
             } catch (JsonProcessingException e) {
                 logger.error("Convert pong message to json failed", e);
             }
+            return;
+        }
+        if (message.has("status")) {
+            logger.info("Response message: {}", message);
             return;
         }
         super.handleMessage(message);
