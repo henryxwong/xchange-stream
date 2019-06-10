@@ -28,6 +28,7 @@
         <module>xchange-wex</module>
         <module>xchange-binance</module>
         <module>xchange-hitbtc</module>
+        <module>xchange-hbdm</module>
     </modules>
 
     <name>xchange-stream</name>
@@ -62,7 +63,7 @@
     <distributionManagement>
         <snapshotRepository>
             <id>hetang_upload</id>
-            <url>http://repo.maven.fqt.fund/repository/hetang/</url>
+            <url>http://repo.maven.fquant.fund/repository/hetang/</url>
         </snapshotRepository>
         <!--<snapshotRepository>-->
             <!--<id>ossrh</id>-->
@@ -70,7 +71,7 @@
         <!--</snapshotRepository>-->
         <repository>
             <id>hetang_upload</id>
-            <url>http://repo.maven.fqt.fund/repository/hetang_release/</url>
+            <url>http://repo.maven.fquant.fund/repository/hetang_release/</url>
         </repository>
         <!--<repository>-->
             <!--<id>ossrh</id>-->
@@ -81,7 +82,7 @@
     <repositories>
         <repository>
             <id>hetang</id>
-            <url>http://repo.maven.fqt.fund/repository/hetang/</url>
+            <url>http://repo.maven.fquant.fund/repository/hetang/</url>
         </repository>
         <!-- For XChange SNAPSHOT dependency -->
         <!--<repository>-->
