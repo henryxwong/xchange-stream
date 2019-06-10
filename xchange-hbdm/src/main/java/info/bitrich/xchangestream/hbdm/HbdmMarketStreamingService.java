@@ -9,11 +9,11 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
-public class HbdmPublicStreamingService extends HbdmStreamingService {
+public class HbdmMarketStreamingService extends HbdmStreamingService {
 
-    private final static Logger logger = LoggerFactory.getLogger(HbdmPublicStreamingService.class);
+    private final static Logger logger = LoggerFactory.getLogger(HbdmMarketStreamingService.class);
 
-    public HbdmPublicStreamingService(String apiUrl) {
+    public HbdmMarketStreamingService(String apiUrl) {
         super(apiUrl);
     }
 

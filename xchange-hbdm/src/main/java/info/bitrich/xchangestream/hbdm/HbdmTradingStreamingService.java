@@ -8,13 +8,12 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 
-public class HbdmPrivateStreamingService extends HbdmStreamingService {
+public class HbdmTradingStreamingService extends HbdmStreamingService {
 
-    private final static Logger logger = LoggerFactory.getLogger(HbdmPrivateStreamingService.class);
+    private final static Logger logger = LoggerFactory.getLogger(HbdmTradingStreamingService.class);
 
-    public HbdmPrivateStreamingService(String apiUrl) {
+    public HbdmTradingStreamingService(String apiUrl) {
         super(apiUrl);
     }
 
