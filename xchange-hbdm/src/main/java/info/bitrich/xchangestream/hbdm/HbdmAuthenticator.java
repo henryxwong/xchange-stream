@@ -23,14 +23,14 @@ public class HbdmAuthenticator {
         String timestamp = sdf.format(new Date());
         params.put("AccessKeyId", apiKey);
         params.put("SignatureMethod", BaseParamsDigest.HMAC_SHA_256);
-        params.put("SignatureVersion", "2");
+        params.put("SignatureVersion", 2);
         params.put("Timestamp", timestamp);
         String query = params.entrySet().stream()
                 .sorted(Map.Entry.comparingByKey())
                 .map(e -> e.getKey() + "=" + encodeValue(e.getValue().toString()))
                 .collect(Collectors.joining("&"));
         String toSign = String.format("%s\n%s\n%s\n%s", httpMethod, host, path, query);
-        final SecretKey secretKey = new SecretKeySpec(apiSecret.getBytes("UTF-8"), BaseParamsDigest.HMAC_SHA_256);
+        final SecretKey secretKey = new SecretKeySpec(apiSecret.getBytes(), BaseParamsDigest.HMAC_SHA_256);
         Mac mac = Mac.getInstance(BaseParamsDigest.HMAC_SHA_256);
         mac.init(secretKey);
         String signature = encodeValue(Base64.getEncoder().encodeToString(mac.doFinal(toSign.getBytes())).trim());
