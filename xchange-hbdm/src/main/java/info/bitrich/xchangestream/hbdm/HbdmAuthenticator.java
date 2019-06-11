@@ -33,7 +33,7 @@ public class HbdmAuthenticator {
         final SecretKey secretKey = new SecretKeySpec(apiSecret.getBytes(), BaseParamsDigest.HMAC_SHA_256);
         Mac mac = Mac.getInstance(BaseParamsDigest.HMAC_SHA_256);
         mac.init(secretKey);
-        String signature = encodeValue(Base64.getEncoder().encodeToString(mac.doFinal(toSign.getBytes())).trim());
+        String signature = Base64.getEncoder().encodeToString(mac.doFinal(toSign.getBytes())).trim();
         params.put("Signature", signature);
         params.put("op", "auth");
         params.put("type", "api");

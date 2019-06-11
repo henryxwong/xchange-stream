@@ -18,6 +18,11 @@ public class HbdmStreamingMarketService extends HbdmStreamingService {
     }
 
     @Override
+    protected String getChannelNameFromMessage(JsonNode message) throws IOException {
+        return message.has("ch") ? message.get("ch").asText() : "";
+    }
+
+    @Override
     public String getSubscribeMessage(String channelName, Object... args) throws IOException {
         Map<String, String> msg = new HashMap<>();
         msg.put("sub", channelName);

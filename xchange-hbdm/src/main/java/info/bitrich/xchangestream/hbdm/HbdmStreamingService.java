@@ -26,11 +26,6 @@ public abstract class HbdmStreamingService extends JsonNettyStreamingService {
     }
 
     @Override
-    protected String getChannelNameFromMessage(JsonNode message) throws IOException {
-        return message.has("ch") ? message.get("ch").asText() : "";
-    }
-
-    @Override
     protected WebSocketClientHandler getWebSocketClientHandler(WebSocketClientHandshaker handshaker, WebSocketClientHandler.WebSocketMessageHandler handler) {
         return new OkCoinNettyWebSocketClientHandler(handshaker, handler);
     }

@@ -6,6 +6,8 @@ import org.knowm.xchange.ExchangeSpecification;
 
 public class HbdmStreamingServiceTest {
 
+    private final HbdmTestProperties hbdmTestProperties = new HbdmTestProperties();
+
     @Test
     @Ignore("run mannually")
     public void testMarketStreamingService() throws InterruptedException {
@@ -20,10 +22,11 @@ public class HbdmStreamingServiceTest {
     @Test
     @Ignore("run mannually")
     public void testTradingStreamingService() throws InterruptedException {
+        assert hbdmTestProperties.isValid();
         HbdmStreamingTradeService streamingService = new HbdmStreamingTradeService("wss://api.hbdm.com/notification");
         ExchangeSpecification exchangeSpecification = (new HbdmStreamingExchange()).getDefaultExchangeSpecification();
-        exchangeSpecification.setApiKey("*");
-        exchangeSpecification.setSecretKey("*");
+        exchangeSpecification.setApiKey(hbdmTestProperties.getApiKey());
+        exchangeSpecification.setSecretKey(hbdmTestProperties.getSecretKey());
         streamingService.setExchangeSpecification(exchangeSpecification);
         streamingService.connect().blockingAwait();
         streamingService.subscribeChannel("orders.btc").subscribe(System.out::println);
