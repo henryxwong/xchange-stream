@@ -40,7 +40,7 @@ public class BitmexStreamingMarketDataService implements StreamingMarketDataServ
         this.bitmexExchange = bitmexExchange;
     }
 
-    private String getBitmexSymbol(CurrencyPair currencyPair) {
+    public static String getBitmexSymbol(CurrencyPair currencyPair) {
         return currencyPair.base.toString() + currencyPair.counter.toString();
     }
 

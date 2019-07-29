@@ -1,14 +1,21 @@
 package info.bitrich.xchangestream.bitmex;
 
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import info.bitrich.xchangestream.bitmex.dto.BitmexOrder;
+import info.bitrich.xchangestream.service.netty.StreamingObjectMapperHelper;
 import io.reactivex.Observable;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.Order;
-import org.knowm.xchange.exceptions.NotYetImplementedForExchangeException;
 
-import java.util.Arrays;
-import java.util.stream.Collectors;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import static info.bitrich.xchangestream.bitmex.BitmexStreamingMarketDataService.getBitmexSymbol;
 
 
 /**
@@ -16,21 +23,53 @@ import java.util.stream.Collectors;
  */
 public class BitmexStreamingTradeService {
 
+    private static final ObjectMapper mapper = StreamingObjectMapperHelper.getObjectMapper();
+
     private final BitmexStreamingService streamingService;
+
+    private final Map<String, ObjectNode> orderMap = new HashMap<>();
 
     public BitmexStreamingTradeService(BitmexStreamingService streamingService) {
         this.streamingService = streamingService;
     }
 
     public Observable<Order> getOrders(CurrencyPair currencyPair, Object... args) {
-        String channelName = "order";
-        String instrument = currencyPair.base.toString() + currencyPair.counter.toString();
+        String instrument = getBitmexSymbol(currencyPair);
+        String channelName = String.format("order:%s", instrument);
+
         return streamingService.subscribeBitmexChannel(channelName).flatMapIterable(s -> {
-            BitmexOrder[] bitmexOrders = s.toBitmexOrders();
-            return Arrays.stream(bitmexOrders)
-                    .filter(bitmexOrder -> bitmexOrder.getSymbol().equals(instrument))
-                    .filter(BitmexOrder::isNotWorkingIndicator)
-                    .map(BitmexOrder::toOrder).collect(Collectors.toList());
+            String action = s.getAction();
+            JsonNode data = s.getData();
+
+            List<Order> orderList = new ArrayList<>(data.size());
+
+            if ("update".equals(action)) {
+                for (JsonNode node : data) {
+                    String orderId = node.get("orderID").textValue();
+
+                    ObjectNode orderNode = orderMap.get(orderId);
+                    if (orderNode != null) {
+                        orderNode.setAll((ObjectNode) node);
+                        Order order = mapper.treeToValue(orderNode, BitmexOrder.class).toOrder();
+                        if (order.getStatus().isFinal()) {
+                            orderMap.remove(orderId);
+                        }
+                        orderList.add(order);
+                    }
+                }
+            } else if ("insert".equals(action)) {
+                for (JsonNode node : data) {
+                    String orderId = node.get("orderID").textValue();
+
+                    Order order = mapper.treeToValue(node, BitmexOrder.class).toOrder();
+                    if (order.getStatus().isOpen()) {
+                        orderMap.put(orderId, (ObjectNode) node);
+                    }
+                    orderList.add(order);
+                }
+            }
+
+            return orderList;
         });
     }
 }
