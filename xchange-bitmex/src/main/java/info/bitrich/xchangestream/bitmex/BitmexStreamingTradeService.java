@@ -4,9 +4,10 @@ package info.bitrich.xchangestream.bitmex;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import info.bitrich.xchangestream.bitmex.dto.BitmexOrder;
 import info.bitrich.xchangestream.service.netty.StreamingObjectMapperHelper;
 import io.reactivex.Observable;
+import org.knowm.xchange.bitmex.BitmexAdapters;
+import org.knowm.xchange.bitmex.dto.marketdata.BitmexPrivateOrder;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.Order;
 
@@ -50,7 +51,7 @@ public class BitmexStreamingTradeService {
                     ObjectNode orderNode = orderMap.get(orderId);
                     if (orderNode != null) {
                         orderNode.setAll((ObjectNode) node);
-                        Order order = mapper.treeToValue(orderNode, BitmexOrder.class).toOrder();
+                        Order order = BitmexAdapters.adaptOrder(mapper.treeToValue(orderNode, BitmexPrivateOrder.class));
                         if (order.getStatus().isFinal()) {
                             orderMap.remove(orderId);
                         }
@@ -61,7 +62,7 @@ public class BitmexStreamingTradeService {
                 for (JsonNode node : data) {
                     String orderId = node.get("orderID").textValue();
 
-                    Order order = mapper.treeToValue(node, BitmexOrder.class).toOrder();
+                    Order order = BitmexAdapters.adaptOrder(mapper.treeToValue(node, BitmexPrivateOrder.class));
                     if (order.getStatus().isOpen()) {
                         orderMap.put(orderId, (ObjectNode) node);
                     }
