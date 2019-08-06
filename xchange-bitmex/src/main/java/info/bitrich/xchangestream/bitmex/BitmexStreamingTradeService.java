@@ -8,6 +8,7 @@ import info.bitrich.xchangestream.service.netty.StreamingObjectMapperHelper;
 import io.reactivex.Observable;
 import org.knowm.xchange.bitmex.BitmexAdapters;
 import org.knowm.xchange.bitmex.dto.marketdata.BitmexPrivateOrder;
+import org.knowm.xchange.bitmex.dto.trade.BitmexPosition;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.Order;
 
@@ -29,6 +30,8 @@ public class BitmexStreamingTradeService {
     private final BitmexStreamingService streamingService;
 
     private final Map<String, ObjectNode> orderMap = new HashMap<>();
+
+    private final Map<String, ObjectNode> positionMap = new HashMap<>();
 
     public BitmexStreamingTradeService(BitmexStreamingService streamingService) {
         this.streamingService = streamingService;
@@ -71,6 +74,47 @@ public class BitmexStreamingTradeService {
             }
 
             return orderList;
+        });
+    }
+
+    public Observable<BitmexPosition> getPosition(CurrencyPair currencyPair, Object... args) {
+        String instrument = getBitmexSymbol(currencyPair);
+        String channelName = String.format("position:%s", instrument);
+
+        return streamingService.subscribeBitmexChannel(channelName).flatMapIterable(s -> {
+            String action = s.getAction();
+            JsonNode data = s.getData();
+
+            List<BitmexPosition> positionList = new ArrayList<>(data.size());
+
+            if ("update".equals(action)) {
+                for (JsonNode node : data) {
+                    // TODO with account?
+                    String symbol = node.get("symbol").textValue();
+
+                    ObjectNode positionNode = positionMap.get(symbol);
+                    if (positionNode != null) {
+                        positionNode.setAll((ObjectNode) node);
+                        BitmexPosition position = mapper.treeToValue(positionNode, BitmexPosition.class);
+                        if (!position.getOpen()) {
+                            positionMap.remove(symbol);
+                        }
+                        positionList.add(position);
+                    }
+                }
+            } else if ("insert".equals(action)) {
+                for (JsonNode node : data) {
+                    String symbol = node.get("symbol").textValue();
+
+                    BitmexPosition position = mapper.treeToValue(node, BitmexPosition.class);
+                    if (!position.getOpen()) {
+                        positionMap.put(symbol, (ObjectNode) node);
+                    }
+                    positionList.add(position);
+                }
+            }
+
+            return positionList;
         });
     }
 }
