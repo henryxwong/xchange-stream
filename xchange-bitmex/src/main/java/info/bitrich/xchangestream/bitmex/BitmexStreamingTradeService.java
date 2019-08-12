@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import info.bitrich.xchangestream.service.netty.StreamingObjectMapperHelper;
 import io.reactivex.Observable;
+import io.reactivex.functions.Function;
 import org.knowm.xchange.bitmex.BitmexAdapters;
 import org.knowm.xchange.bitmex.dto.marketdata.BitmexPrivateOrder;
 import org.knowm.xchange.bitmex.dto.trade.BitmexPosition;
@@ -16,7 +17,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
 import java.util.function.Predicate;
 
 import static info.bitrich.xchangestream.bitmex.BitmexStreamingMarketDataService.getBitmexSymbol;
@@ -34,6 +34,8 @@ public class BitmexStreamingTradeService {
     private final Map<String, ObjectNode> orderMap = new HashMap<>();
 
     private final Map<String, ObjectNode> positionMap = new HashMap<>();
+
+    private final Map<String, BitmexPosition> inactivePositionMap = new HashMap<>();
 
     public BitmexStreamingTradeService(BitmexStreamingService streamingService) {
         this.streamingService = streamingService;
@@ -79,47 +81,6 @@ public class BitmexStreamingTradeService {
         });
     }
 
-    public Observable<BitmexPosition> getPosition(CurrencyPair currencyPair, Object... args) {
-        String instrument = getBitmexSymbol(currencyPair);
-        String channelName = String.format("position:%s", instrument);
-
-        return streamingService.subscribeBitmexChannel(channelName).flatMapIterable(s -> {
-            String action = s.getAction();
-            JsonNode data = s.getData();
-
-            List<BitmexPosition> positionList = new ArrayList<>(data.size());
-
-            if ("update".equals(action)) {
-                for (JsonNode node : data) {
-                    // TODO with account?
-                    String symbol = node.get("symbol").textValue();
-
-                    ObjectNode positionNode = positionMap.get(symbol);
-                    if (positionNode != null) {
-                        positionNode.setAll((ObjectNode) node);
-                        BitmexPosition position = mapper.treeToValue(positionNode, BitmexPosition.class);
-                        if (!position.getOpen()) {
-                            positionMap.remove(symbol);
-                        }
-                        positionList.add(position);
-                    }
-                }
-            } else if ("insert".equals(action)) {
-                for (JsonNode node : data) {
-                    String symbol = node.get("symbol").textValue();
-
-                    BitmexPosition position = mapper.treeToValue(node, BitmexPosition.class);
-                    if (!position.getOpen()) {
-                        positionMap.put(symbol, (ObjectNode) node);
-                    }
-                    positionList.add(position);
-                }
-            }
-
-            return positionList;
-        });
-    }
-
     private <T, K> Observable<T> getData(String channel, CurrencyPair currencyPair, Function<ObjectNode, K> keyExtractor, Map<K, ObjectNode> dataMap, Function<ObjectNode, T> dataMapper, Predicate<T> inactiveTester, Map<K, T> inactiveDataMap) {
         String channelName = String.format(channel + ":%s", getBitmexSymbol(currencyPair));
 
@@ -128,7 +89,6 @@ public class BitmexStreamingTradeService {
             JsonNode data = s.getData();
 
             List<T> itemList = new ArrayList<>(data.size());
-
             if ("update".equals(action)) {
                 for (JsonNode node : data) {
                     ObjectNode objectNode = (ObjectNode) node;
@@ -162,5 +122,15 @@ public class BitmexStreamingTradeService {
 
             return itemList;
         });
+    }
+
+    public Observable<BitmexPosition> getPosition(CurrencyPair currencyPair) {
+        return getData("position",
+                currencyPair,
+                node -> node.get("account").textValue() + "/" + node.get("symbol").textValue(),
+                positionMap,
+                node -> mapper.treeToValue(node, BitmexPosition.class),
+                position -> !position.getOpen(),
+                inactivePositionMap);
     }
 }
