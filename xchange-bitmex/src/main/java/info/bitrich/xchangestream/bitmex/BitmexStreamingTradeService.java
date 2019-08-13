@@ -21,10 +21,6 @@ import java.util.function.Predicate;
 
 import static info.bitrich.xchangestream.bitmex.BitmexStreamingMarketDataService.getBitmexSymbol;
 
-
-/**
- * Created by Declan
- */
 public class BitmexStreamingTradeService {
 
     private static final ObjectMapper mapper = StreamingObjectMapperHelper.getObjectMapper();
@@ -35,54 +31,12 @@ public class BitmexStreamingTradeService {
 
     private final Map<String, ObjectNode> positionMap = new HashMap<>();
 
-    private final Map<String, BitmexPosition> inactivePositionMap = new HashMap<>();
-
     public BitmexStreamingTradeService(BitmexStreamingService streamingService) {
         this.streamingService = streamingService;
     }
 
-    public Observable<Order> getOrders(CurrencyPair currencyPair, Object... args) {
-        String instrument = getBitmexSymbol(currencyPair);
-        String channelName = String.format("order:%s", instrument);
-
-        return streamingService.subscribeBitmexChannel(channelName).flatMapIterable(s -> {
-            String action = s.getAction();
-            JsonNode data = s.getData();
-
-            List<Order> orderList = new ArrayList<>(data.size());
-
-            if ("update".equals(action)) {
-                for (JsonNode node : data) {
-                    String orderId = node.get("orderID").textValue();
-
-                    ObjectNode orderNode = orderMap.get(orderId);
-                    if (orderNode != null) {
-                        orderNode.setAll((ObjectNode) node);
-                        Order order = BitmexAdapters.adaptOrder(mapper.treeToValue(orderNode, BitmexPrivateOrder.class));
-                        if (order.getStatus().isFinal()) {
-                            orderMap.remove(orderId);
-                        }
-                        orderList.add(order);
-                    }
-                }
-            } else if ("insert".equals(action)) {
-                for (JsonNode node : data) {
-                    String orderId = node.get("orderID").textValue();
-
-                    Order order = BitmexAdapters.adaptOrder(mapper.treeToValue(node, BitmexPrivateOrder.class));
-                    if (order.getStatus().isOpen()) {
-                        orderMap.put(orderId, (ObjectNode) node);
-                    }
-                    orderList.add(order);
-                }
-            }
-
-            return orderList;
-        });
-    }
-
-    private <T, K> Observable<T> getData(String channel, CurrencyPair currencyPair, Function<ObjectNode, K> keyExtractor, Map<K, ObjectNode> dataMap, Function<ObjectNode, T> dataMapper, Predicate<T> inactiveTester, Map<K, T> inactiveDataMap) {
-        String channelName = String.format(channel + ":%s", getBitmexSymbol(currencyPair));
+    private <T, K> Observable<T> getData(String channel, CurrencyPair currencyPair, Function<ObjectNode, K> keyExtractor, Map<K, ObjectNode> dataMap, Function<ObjectNode, T> dataMapper, Predicate<T> inactiveTester) {
+        String channelName = channel + ":" + getBitmexSymbol(currencyPair);
 
         return streamingService.subscribeBitmexChannel(channelName).flatMapIterable(s -> {
             String action = s.getAction();
@@ -100,7 +54,6 @@ public class BitmexStreamingTradeService {
                         T mappedData = dataMapper.apply(dataNode);
                         if (inactiveTester.test(mappedData)) {
                             dataMap.remove(key);
-                            inactiveDataMap.put(key, mappedData);
                         }
                         itemList.add(mappedData);
                     }
@@ -111,9 +64,7 @@ public class BitmexStreamingTradeService {
                     K key = keyExtractor.apply(objectNode);
 
                     T mappedData = dataMapper.apply(objectNode);
-                    if (inactiveTester.test(mappedData)) {
-                        inactiveDataMap.put(key, mappedData);
-                    } else {
+                    if (!inactiveTester.test(mappedData)) {
                         dataMap.put(key, objectNode);
                     }
                     itemList.add(mappedData);
@@ -124,13 +75,21 @@ public class BitmexStreamingTradeService {
         });
     }
 
+    public Observable<Order> getOrders(CurrencyPair currencyPair) {
+        return getData("order",
+                currencyPair,
+                node -> node.get("orderID").textValue(),
+                orderMap,
+                node -> BitmexAdapters.adaptOrder(mapper.treeToValue(node, BitmexPrivateOrder.class)),
+                order -> order.getStatus().isFinal());
+    }
+
     public Observable<BitmexPosition> getPosition(CurrencyPair currencyPair) {
         return getData("position",
                 currencyPair,
                 node -> node.get("account").textValue() + "/" + node.get("symbol").textValue(),
                 positionMap,
                 node -> mapper.treeToValue(node, BitmexPosition.class),
-                position -> !position.getOpen(),
-                inactivePositionMap);
+                position -> !position.getOpen());
     }
 }
